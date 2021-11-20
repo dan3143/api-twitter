@@ -66,9 +66,7 @@ const validateUser = (req, res, next) => {
 
   const errors = [];
   const regExpEmail = new RegExp(/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/);
-  const regExpPassword = new RegExp(
-    /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#\$%\^&\*])(?=.{8,})/
-  );
+  const regExpPassword = new RegExp(/^(?=.{8,})/);
   const regExpRole = new RegExp(/^(admin|registered)$/);
 
   if (name && email && username && password && passwordConfirmation && role) {

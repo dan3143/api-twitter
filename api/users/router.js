@@ -1,5 +1,14 @@
 const express = require("express");
-const { list, create, update, login, logout, remove } = require("./controller");
+const {
+  list,
+  create,
+  update,
+  login,
+  logout,
+  remove,
+  find,
+  tweetsOfUser,
+} = require("./controller");
 const { logger } = require("../middleware/logger");
 const { validateUser, validateLogin } = require("../middleware/validator");
 const { authenticator } = require("../middleware/authenticator");
@@ -20,7 +29,10 @@ router.route("/login").post(validateLogin, login);
 router.route("/logout").get(logout);
 
 router
-  .route("/:id") //
+  .route("/:id")
+  .get(find)
   .put(authenticator, usersAuthorization, validateUser, update);
+
+router.route("/:username/tweets").get(tweetsOfUser);
 
 module.exports = router;

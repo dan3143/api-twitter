@@ -12,4 +12,15 @@ const verifyIfUserIsOwnsTweet = async (userId, tweetId) => {
   }
 };
 
-module.exports = { verifyIfUserIsOwnsTweet };
+const verifyIfUserOwnsComment = async (userId, commentId) => {
+  const validateUser = await Tweet.find({
+    $and: [
+      { "comments._id": { $eq: commentId } },
+      { "comments.user": { $eq: userId } },
+    ],
+  });
+
+  return validateUser.length > 0;
+};
+
+module.exports = { verifyIfUserIsOwnsTweet, verifyIfUserOwnsComment };

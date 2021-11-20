@@ -1,4 +1,7 @@
-const { verifyIfUserIsOwnsTweet } = require("../services/tweetService");
+const {
+  verifyIfUserIsOwnsTweet,
+  verifyIfUserOwnsComment,
+} = require("../services/tweetService");
 const {
   isUserAdmin,
   verifyIfUserExistById,
@@ -42,4 +45,22 @@ const tweetsAuthorization = async (req, res, next) => {
   }
 };
 
-module.exports = { usersAuthorization, tweetsAuthorization };
+const commentsAuthorization = async (req, res, next) => {
+  const { userId, commentId } = req.body;
+  const result = await verifyIfUserOwnsComment(userId, commentId);
+  const isAdmin = await isUserAdmin(userId);
+
+  if (result || isAdmin) {
+    next();
+  } else {
+    res.status(403).json({
+      message: locale.translate("errors.operationNotAllowed"),
+    });
+  }
+};
+
+module.exports = {
+  usersAuthorization,
+  tweetsAuthorization,
+  commentsAuthorization,
+};

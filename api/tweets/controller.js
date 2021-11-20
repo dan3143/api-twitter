@@ -7,8 +7,8 @@ const list = (req, res) => {
   const skip = (page - 1) * limit;
 
   Tweet.find({}, ["content", "comments", "likes", "user", "createdAt"])
-    .populate("user", ["name", "username"])
-    .populate("comments.user", ["name", "username"])
+    .populate("user", ["name", "username", "email"])
+    .populate("comments.user", ["name", "username", "email"])
     .limit(Number(limit))
     .skip(skip)
     .sort({ createdAt: -1 })
@@ -27,6 +27,78 @@ const list = (req, res) => {
     });
 };
 
+const find = async (req, res) => {
+  const { id } = req.params;
+  const tweet = await Tweet.findOne({ _id: id }, [
+    "content",
+    "comments",
+    "likes",
+    "user",
+    "createdAt",
+  ])
+    .populate("user", ["name", "username", "email"])
+    .populate("comments.user", ["name", "username", "email"]);
+  if (tweet) {
+    res.status(200).json({ data: tweet });
+  } else {
+    res
+      .status(404)
+      .json({ message: locale.translate("errors.tweet.tweetNotExists") });
+  }
+};
+
+const searchTweets = async (req, res) => {
+  const { q, page = 1, limit = 10 } = req.query;
+  const skip = (page - 1) * limit;
+  if (q) {
+    Tweet.find({ content: { $regex: q, $options: "i" } }, [
+      "content",
+      "comments",
+      "likes",
+      "user",
+      "createdAt",
+    ])
+      .populate("user", ["name", "username", "email"])
+      .populate("comments.user", ["name", "username", "email"])
+      .limit(Number(limit))
+      .skip(skip)
+      .sort({ createdAt: -1 })
+      .then(async (tweets) => {
+        const total = await Tweet.estimatedDocumentCount();
+        const totalPages = Math.round(total / limit);
+        const hasMore = page < totalPages;
+
+        res.status(200).json({
+          hasMore,
+          totalPages,
+          total,
+          data: tweets,
+          currentPage: page,
+        });
+      });
+  } else {
+    res.status(404).json({ message: "No search query provided" });
+  }
+};
+
+const deleteComment = async (req, res) => {
+  const { tweetId, commentId } = req.body;
+  const result = await Tweet.findByIdAndUpdate(
+    tweetId,
+    {
+      $pull: {
+        comments: { _id: commentId },
+      },
+    },
+    { new: true }
+  );
+  if (result) {
+    res.status(200).json({ message: "ok" });
+  } else {
+    res.status(500).json({ message: "error" });
+  }
+};
+
 const create = (req, res) => {
   const { content, userId } = req.body;
 
@@ -36,9 +108,25 @@ const create = (req, res) => {
   };
 
   const newTweet = new Tweet(tweet);
-  newTweet.save().then((tweetCreated) => {
-    res.status(200).json(tweetCreated);
-  });
+  newTweet
+    .save()
+    .then((tweetCreated) => {
+      console.log(tweetCreated);
+      Tweet.populate(
+        tweetCreated,
+        { path: "user", select: "username name email" },
+        (err, tweet) => {
+          if (err)
+            return res
+              .status(500)
+              .json({ message: "error while populating tweet" });
+          return res.status(200).json({ data: tweet });
+        }
+      );
+    })
+    .catch((err) =>
+      res.status(500).json({ message: "error while creating tweet" })
+    );
 };
 
 const createComment = (req, res) => {
@@ -61,7 +149,7 @@ const createComment = (req, res) => {
 const likes = (req, res) => {
   const { like, tweetId } = req.body;
 
-  Tweet.updateOne({ _id: tweetId }, { $inc: { likes: 1 } })
+  Tweet.updateOne({ _id: tweetId }, { $inc: { likes: like === 1 ? 1 : -1 } })
     .then(() => {
       res.status(200).json({ message: "ok" });
     })
@@ -110,9 +198,12 @@ const getExternalTweetsByUsername = async (req, res) => {
 
 module.exports = {
   list,
+  find,
   create,
   createComment,
   likes,
   destroyTweet,
   getExternalTweetsByUsername,
+  deleteComment,
+  searchTweets,
 };
